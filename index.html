@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Image Vault</title>
+  <!-- Font Awesome for social icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #2c2f4a;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    /* Landing Page */
+    .landing {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  background-image: url('bg.gif');
+  background-size: 90%;
+  /*background-size: cover;*/
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: center;
+}
+
+.overlay-content {
+  background: rgba(44, 47, 74, 0.7); /* semi-transparent dark layer */
+  padding: 30px 40px;
+  border-radius: 16px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.4);
+  animation: fadeIn 2s ease-in-out forwards;
+}
+
+.overlay-content h1 {
+  font-size: 3em;
+  color: #ffcc70;
+  margin-bottom: 20px;
+}
+
+.overlay-content p {
+  font-size: 1.2em;
+  color: #ccc;
+  max-width: 600px;
+}
+
+.enter-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  background: #ffcc70;
+  color: #1e1e2f;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  z-index: 10;
+}
+
+.enter-btn:hover {
+  background: #ffe89c;
+  transform: scale(1.1);
+}
+
+
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    /* Hide auth and app by default */
+    #authSection, #appSection {
+      display: none;
+    }
+
+    .top-bar {
+      display: flex; justify-content: space-between;
+      align-items: center; background: #2c2f4a;
+      padding: 15px 20px;
+    }
+    .auth-box a {
+  color: white;
+  text-decoration: none;
+}
+@media (max-width: 600px) {
+  .actions {
+    flex-direction: column;
+  }
+  
+  .search-bar {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .card img {
+    height: 120px;
+  }
+
+  .auth-box {
+    max-width: 90vw;
+    padding: 30px 20px;
+  }
+}
+
+.auth-box a:hover {
+  text-decoration: underline;
+}
+
+    .top-bar h2 { margin: 0; color: #ffcc70; }
+    .logout-btn {
+      background: #ff5f5f; border: none;
+      padding: 10px 16px; border-radius: 6px;
+      color: white; font-weight: bold; cursor: pointer;
+    }
+
+    .logout-btn:hover { background: #ff7f7f; }
+
+    /* Auth Section Centering */
+    .auth-section {
+      display: flex; justify-content: center;
+      align-items: center; height: 100vh;
+    }
+
+    .auth-box {
+      background: #2c2f4a; 
+      padding: 40px 50px;
+      border-radius: 12px; max-width: 360px; width: 100%;
+      border: 2px solid #ffcc70;
+      box-shadow: 0 0 18px 4px rgba(255, 204, 112, 0.3);
+      text-align: center;
+    }
+
+    .auth-box h2 { color: #ffcc70; margin-bottom: 20px; }
+
+    .auth-box input, .auth-box button {
+      width: 100%; padding: 12px; margin: 10px 0;
+      border-radius: 6px; font-size: 1em; border: none;
+    }
+
+    .auth-box input {
+      background: #1e1e2f; color: white;
+      box-shadow: 0 0 0 1px #444 inset;
+    }
+
+    .auth-box input:focus {
+      outline: none;
+      box-shadow: 0 0 10px 2px #ffcc70;
+    }
+
+    .auth-box button {
+      background: #ffcc70; color: #1e1e2f;
+      font-weight: bold; cursor: pointer;
+    }
+
+    .auth-box button:hover {
+      background: #ffe89c; transform: scale(1.03);
+    }
+
+    input.error {
+      border: 2px solid #ff5f5f !important;
+      background: #3a2c2c !important;
+    }
+
+    .dashboard {
+      padding: 20px; max-width: 1100px; margin: auto;
+    }
+
+    .actions {
+      display: flex; flex-wrap: wrap;
+      gap: 10px; margin-bottom: 20px;
+      justify-content: space-between;
+    }
+
+    .upload-label {
+      background: #ffcc70; padding: 12px 20px;
+      border-radius: 8px; font-weight: bold;
+      cursor: pointer; color: #1e1e2f;
+    }
+
+    .search-bar { flex-grow: 1; }
+    .search-bar input {
+      width: 100%; padding: 12px 15px;
+      border: none; border-radius: 8px;
+      background: #2c2f4a; color: #fff;
+    }
+
+    .gallery {
+      display: grid; gap: 15px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+
+    .card {
+      background: #2c2f4a; border-radius: 8px;
+      overflow: hidden; display: flex;
+      flex-direction: column;
+    }
+
+    .card img {
+      width: 100%; height: 150px;
+      object-fit: cover;
+    }
+
+    .card .info {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 10px;
+    }
+
+    .card .info p {
+      margin: 0; font-size: 0.9em;
+      color: #ccc; overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap; flex-grow: 1;
+    }
+
+    .card button {
+      background: transparent; border: 1.5px solid #ff5f5f;
+      color: #ff5f5f; border-radius: 6px;
+      padding: 4px 8px; font-size: 0.75em;
+      cursor: pointer;
+    }
+
+    .card button:hover {
+      background: #ff5f5f; color: white;
+    }
+
+    /* Delete Modal */
+    #deleteModal {
+      display: none; position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999; justify-content: center; align-items: center;
+    }
+    /* Login box glowing pulse */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 18px 4px rgba(255, 204, 112, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px 8px rgba(255, 204, 112, 0.6);
+  }
+}
+
+.auth-box {
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+/* Button hover scale & color */
+.auth-box button, .logout-btn, .upload-label, .card button {
+  transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+}
+
+.auth-box button:hover, .logout-btn:hover, .upload-label:hover, .card button:hover {
+  transform: scale(1.05);
+  background-color: #ffd966; /* lighter gold on hover */
+  color: #222;
+}
+
+/* Image card hover zoom */
+.card img {
+  transition: transform 0.3s ease;
+}
+
+.card:hover img {
+  transform: scale(1.1);
+}
+
+/* Upload label pulse */
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 204, 112, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba(255, 204, 112, 0.3);
+  }
+}
+
+.upload-label {
+  animation: pulse 3s infinite;
+}
+
+/* Dashboard top bar gradient animation */
+@keyframes gradientBG {
+  0% {background-position: 0% 50%;}
+  50% {background-position: 100% 50%;}
+  100% {background-position: 0% 50%;}
+}
+
+.top-bar {
+  background: linear-gradient(270deg, #2c2f4a, #3a3f63, #2c2f4a);
+  background-size: 600% 600%;
+  animation: gradientBG 20s ease infinite;
+}
+
+/* Fade in dashboard content */
+#appSection {
+  opacity: 0;
+  animation: fadeInContent 1s forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes fadeInContent {
+  to {
+    opacity: 1;
+  }
+}
+footer {
+  background-color: #5f52a8;
+  color: #121212;
+  padding: 60px 30px;
+  font-family: sans-serif;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+}
+
+.footer-column h3 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.footer-column ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-column ul li {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.footer-column a {
+  text-decoration: none;
+  color: #121212;
+}
+
+.footer-column a:hover {
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  text-align: center;
+  border-top: 1px solid #aaa;
+  margin-top: 50px;
+  padding-top: 20px;
+  font-size: 14px;
+  color: #333;
+}
+
+.footer-bottom a {
+  margin: 0 10px;
+  color: #121212;
+  text-decoration: none;
+}
+
+.footer-bottom a:hover {
+  text-decoration: underline;
+}
+
+.footer-social {
+  display: flex;
+  gap: 15px;
+  font-size: 24px;
+}
+
+/* Splash Screen */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('train.gif');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-color: #2c2f4a;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 99999;
+  animation: fadeOutSplash 1s ease forwards;
+  animation-delay: 10s;
+}
+
+.splash-content {
+  text-align: center;
+  color: #ffcc70;
+  animation: fadeIn 2s ease-in-out;
+}
+
+.splash-content h1 {
+  font-size: 2.8em;
+  margin-bottom: 10px;
+}
+
+.splash-content p {
+  font-size: 1.1em;
+  color: #ccc;
+}
+
+/* Optional fade-out */
+@keyframes fadeOutSplash {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+
+    /* ---- Copy and paste your existing CSS styles below (already included) ---- */
+    /* Keep all your original CSS here, or include it via <link> if separate */
+
+    /* --- Your existing styles (auth-box, dashboard, top-bar, gallery etc.) are here --- */
+  </style>
+</head>
+<body>
+
+  <!-- 🌊 Splash Screen -->
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <h1>Image Gallery</h1>
+    <p>Loading your secure vault...</p>
+  </div>
+</div>
+
+<!-- 🌟 Landing Page -->
+<div class="landing" id="landing">
+  <button class="enter-btn" onclick="enterApp()">Sign In</button>
+  <div class="overlay-content">
+    <h1>Welcome to Image Gallery</h1>
+    <p>Securely store, view, and manage your images in a private vault powered by Appwrite.</p>
+  </div>
+</div>
+
+
+<!-- 🔐 Auth Section -->
+<div class="auth-section" id="authSection">
+  <div class="auth-box">
+    <h2 id="authTitle">Login</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <p id="authError" style="color:#ff5f5f; font-size:0.9em;"></p>
+    <button onclick="handleAuth()" id="authActionBtn">Login</button>
+    <p style="margin-top: 12px;">
+      <span id="togglePrompt">Don't have an account?</span>
+      <a href="#" onclick="toggleAuthMode()">Sign up</a>
+    </p>
+  </div>
+</div>
+
+<!-- 📂 App Section (Dashboard) -->
+<div id="appSection">
+  <div class="top-bar">
+    <h2 id="userName">Dashboard</h2>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="dashboard">
+    <div class="actions">
+      <label for="fileInput" class="upload-label">Upload Image</label>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search images..." />
+      </div>
+    </div>
+
+    <input type="file" id="fileInput" style="display:none;" onchange="uploadImage()" />
+    <p id="uploadStatus" style="font-style: italic; color: #ccc;"></p>
+    <div class="gallery" id="gallery"></div>
+  </div>
+</div>
+
+<!-- 🗑️ Delete Modal -->
+<div id="deleteModal">
+  <div style="background:#2c2f4a; padding:20px 30px; border-radius:10px; text-align:center;">
+    <p style="color:#fff; margin-bottom:20px;">Are you sure you want to delete this image?</p>
+    <div style="display:flex; justify-content:space-between; gap:10px;">
+      <button onclick="cancelDelete()" style="padding:10px 20px;">Cancel</button>
+      <button onclick="confirmDelete()" style="padding:10px 20px; background:#ff5f5f; color:#fff;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Include Font Awesome in your <head> -->
+
+
+<footer>
+  <div class="footer-container">
+    <!-- Column 1 -->
+    <div class="footer-column">
+      <h3>Shop Matcha</h3>
+      <ul>
+        <li><a href="#">Starter Kits</a></li>
+        <li><a href="#">Lattes & Sweetened</a></li>
+        <li><a href="#">Just the Matcha</a></li>
+        <li><a href="#">Matchaware</a></li>
+        <li><a href="#">Shop All</a></li>
+      </ul>
+    </div>
+
+    <!-- Column 2 -->
+    <div class="footer-column">
+      <h3>Learn</h3>
+      <ul>
+        <li><a href="#">Our Story</a></li>
+        <li><a href="#">Matcha Recipes</a></li>
+        <li><a href="#">Caffeine Content</a></li>
+        <li><a href="#">Health Benefits</a></li>
+        <li><a href="#">FAQs</a></li>
+      </ul>
+    </div>
+
+    <!-- Column 3 -->
+    <div class="footer-column">
+      <h3>More from Tenzo</h3>
+      <ul>
+        <li><a href="#">Sign In</a></li>
+        <li><a href="#">Wholesale Opportunities</a></li>
+        <li><a href="#">Affiliate</a></li>
+        <li><a href="#">Contact Us</a></li>
+      </ul>
+    </div>
+
+    <!-- Column 4 -->
+    <div class="footer-column">
+      <h3>Follow us</h3>
+      <div class="footer-social">
+        <a href="#"><i class="fab fa-pinterest"></i></a>
+        <a href="#"><i class="fab fa-facebook"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+        <a href="#"><i class="fab fa-twitter"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <p>© 2025 tenzoea.co</p>
+    <p>
+      <a href="#">Terms of Service</a> |
+      <a href="#">Privacy Policy</a> |
+      <a href="#">Refund Policy</a> |
+      <a href="#">Accessibility Policy</a>
+    </p>
+  </div>
+</footer>
+
+
+
+<!-- 🚀 Scripts -->
+<script>
+  const client = new Appwrite.Client()
+    .setEndpoint("https://cloud.appwrite.io/v1")
+    .setProject("6880958d002993e579b3");
+
+  const account = new Appwrite.Account(client);
+  const storage = new Appwrite.Storage(client);
+  const BUCKET_ID = "688096760038ed926d87";
+
+  let currentUser = null;
+  let fileToDelete = null;
+  let isLoginMode = true;
+
+  function enterApp() {
+    document.getElementById("landing").style.display = "none";
+    document.getElementById("authSection").style.display = "flex";
+  }
+
+  async function handleAuth() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    clearAuthErrors();
+
+    if (!email || !password) {
+      showAuthError("Please enter both email and password.");
+      return;
+    }
+
+    try {
+      await account.deleteSession('current').catch(() => {});
+      if (isLoginMode) {
+        await account.createEmailSession(email, password);
+      } else {
+        await account.create('unique()', email, password);
+        await account.createEmailSession(email, password);
+      }
+      loadApp();
+    } catch (err) {
+      showAuthError((isLoginMode ? "Login" : "Signup") + " failed: " + err.message);
+    }
+  }
+
+  function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    document.getElementById("authTitle").textContent = isLoginMode ? "Login" : "Sign Up";
+    document.getElementById("authActionBtn").textContent = isLoginMode ? "Login" : "Sign Up";
+    document.getElementById("togglePrompt").textContent = isLoginMode
+      ? "Don't have an account?"
+      : "Already have an account?";
+    document.querySelector("#togglePrompt + a").textContent = isLoginMode ? "Sign up" : "Login";
+    clearAuthErrors();
+  }
+
+  function showAuthError(msg) {
+    document.getElementById("authError").textContent = msg;
+  }
+
+  function clearAuthErrors() {
+    document.getElementById("authError").textContent = "";
+  }
+
+  async function loadApp() {
+    try {
+      const user = await account.get();
+      currentUser = user;
+      document.getElementById("userName").textContent = "Hello, " + (user.name || user.email.split('@')[0]);
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("appSection").style.display = "block";
+      loadImages();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function uploadImage() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file || !currentUser) return;
+
+    const status = document.getElementById("uploadStatus");
+    status.textContent = "Uploading...";
+
+    const userPrefixed = new File([file], `${currentUser.$id}_${file.name}`, { type: file.type });
+
+    try {
+      await storage.createFile(BUCKET_ID, 'unique()', userPrefixed, [
+        Appwrite.Permission.read(Appwrite.Role.user(currentUser.$id)),
+        Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id)),
+      ]);
+      status.textContent = "Upload successful!";
+      loadImages();
+    } catch (err) {
+      status.textContent = "Upload failed: " + err.message;
+    } finally {
+      setTimeout(() => (status.textContent = ""), 4000);
+      document.getElementById("fileInput").value = "";
+    }
+  }
+
+  async function loadImages() {
+    const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
+
+    try {
+      const result = await storage.listFiles(BUCKET_ID);
+      const userFiles = result.files.filter(f => f.name.startsWith(`${currentUser.$id}_`));
+
+      if (userFiles.length === 0) {
+        gallery.innerHTML = "<p style='color:#ccc;'>No images to show.</p>";
+        return;
+      }
+
+      userFiles.forEach(file => {
+        const imgURL = storage.getFileView(BUCKET_ID, file.$id).href;
+        const displayName = file.name.replace(`${currentUser.$id}_`, "");
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${imgURL}" />
+          <div class="info">
+            <p title="${displayName}">${displayName}</p>
+            <button onclick="deleteFile('${file.$id}')">Delete</button>
+          </div>
+        `;
+        gallery.appendChild(card);
+      });
+    } catch (err) {
+      gallery.innerHTML = `<p style='color:red;'>Error: ${err.message}</p>`;
+    }
+  }
+
+  function deleteFile(id) {
+    fileToDelete = id;
+    document.getElementById("deleteModal").style.display = "flex";
+  }
+
+  function cancelDelete() {
+    fileToDelete = null;
+    document.getElementById("deleteModal").style.display = "none";
+  }
+
+  async function confirmDelete() {
+    try {
+      await storage.deleteFile(BUCKET_ID, fileToDelete);
+      loadImages();
+    } catch (err) {
+      alert("Delete failed: " + err.message);
+    } finally {
+      document.getElementById("deleteModal").style.display = "none";
+    }
+  }
+
+  async function logout() {
+    await account.deleteSession("current");
+    location.reload();
+  }
+
+  // Auto-login if session exists
+  loadApp();
+
+  document.getElementById("searchInput").addEventListener("input", function () {
+    const keyword = this.value.toLowerCase();
+    const cards = document.querySelectorAll(".card");
+
+    let count = 0;
+    cards.forEach(card => {
+      const name = card.querySelector("p").textContent.toLowerCase();
+      const visible = name.includes(keyword);
+      card.style.display = visible ? "flex" : "none";
+      if (visible) count++;
+    });
+
+    if (count === 0) {
+      document.getElementById("gallery").innerHTML = "<p style='text-align:center; color:#aaa;'>No matching images.</p>";
+    }
+  });
+
+  // ⏳ Splash screen logic
+window.addEventListener("load", function () {
+  setTimeout(() => {
+    document.getElementById("splashScreen").style.display = "none";
+    document.getElementById("landing").style.display = "flex";
+  }, 10000); // 10 seconds
+});
+
+</script>
+
+</body>
+</html>
