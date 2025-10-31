@@ -591,15 +591,36 @@ footer {
   const storage = new Appwrite.Storage(client);
   const BUCKET_ID = "688096760038ed926d87";
 
+  // UI Elements
+  const splashScreen = document.getElementById("splashScreen");
+  const landingPage = document.getElementById("landing");
+  const authSection = document.getElementById("authSection");
+  const appSection = document.getElementById("appSection");
+  const gallery = document.getElementById("gallery");
+  const uploadStatus = document.getElementById("uploadStatus");
+
   let currentUser = null;
   let fileToDelete = null;
   let isLoginMode = true;
 
-  function enterApp() {
-    document.getElementById("landing").style.display = "none";
-    document.getElementById("authSection").style.display = "flex";
+  // --- Core App Logic ---
+
+  // 1. Initialize the app: Check for an existing session
+  async function initializeApp() {
+    try {
+      // Try to get the current user
+      currentUser = await account.get();
+      // If successful, show the main application view
+      showAppView();
+    } catch (err) {
+      // If it fails, it means the user is not logged in
+      console.log("No active session found.");
+      // Show the landing page
+      showLandingView();
+    }
   }
 
+  // 2. Handle Login/Signup attempts
   async function handleAuth() {
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value.trim();
@@ -611,26 +632,64 @@ footer {
     }
 
     try {
-      await account.deleteSession('current').catch(() => {});
       if (isLoginMode) {
         await account.createEmailSession(email, password);
       } else {
+        // Create the user first, then create the session
         await account.create('unique()', email, password);
         await account.createEmailSession(email, password);
       }
-      loadApp();
+      // After successful login/signup, re-initialize the app
+      initializeApp();
     } catch (err) {
       showAuthError((isLoginMode ? "Login" : "Signup") + " failed: " + err.message);
     }
+  }
+  
+  // 3. Logout the user
+  async function logout() {
+    try {
+      await account.deleteSession("current");
+      location.reload(); // Easiest way to reset the app state
+    } catch(err) {
+       console.error("Logout failed:", err);
+    }
+  }
+
+  // --- UI Control Functions ---
+
+  function showLandingView() {
+    splashScreen.style.display = 'none';
+    landingPage.style.display = 'flex';
+    authSection.style.display = 'none';
+    appSection.style.display = 'none';
+  }
+
+  function showAuthView() {
+    landingPage.style.display = 'none';
+    authSection.style.display = 'flex';
+  }
+
+  function showAppView() {
+    document.getElementById("userName").textContent = "Hello, " + (currentUser.name || currentUser.email.split('@')[0]);
+    splashScreen.style.display = 'none';
+    landingPage.style.display = 'none';
+    authSection.style.display = 'none';
+    appSection.style.display = 'block';
+    loadImages();
+  }
+
+  function enterApp() {
+    showAuthView();
   }
 
   function toggleAuthMode() {
     isLoginMode = !isLoginMode;
     document.getElementById("authTitle").textContent = isLoginMode ? "Login" : "Sign Up";
     document.getElementById("authActionBtn").textContent = isLoginMode ? "Login" : "Sign Up";
-    document.getElementById("togglePrompt").textContent = isLoginMode
-      ? "Don't have an account?"
-      : "Already have an account?";
+    document.getElementById("togglePrompt").textContent = isLoginMode ?
+      "Don't have an account?" :
+      "Already have an account?";
     document.querySelector("#togglePrompt + a").textContent = isLoginMode ? "Sign up" : "Login";
     clearAuthErrors();
   }
@@ -643,76 +702,61 @@ footer {
     document.getElementById("authError").textContent = "";
   }
 
-  async function loadApp() {
-    try {
-      const user = await account.get();
-      currentUser = user;
-      document.getElementById("userName").textContent = "Hello, " + (user.name || user.email.split('@')[0]);
-      document.getElementById("authSection").style.display = "none";
-      document.getElementById("appSection").style.display = "block";
-      loadImages();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  // --- Storage (Image) Functions ---
 
   async function uploadImage() {
     const file = document.getElementById("fileInput").files[0];
     if (!file || !currentUser) return;
 
-    const status = document.getElementById("uploadStatus");
-    status.textContent = "Uploading...";
-
-    const userPrefixed = new File([file], `${currentUser.$id}_${file.name}`, { type: file.type });
+    uploadStatus.textContent = "Uploading...";
 
     try {
-      await storage.createFile(BUCKET_ID, 'unique()', userPrefixed, [
+      // No need to prefix the file name; permissions will handle access.
+      await storage.createFile(BUCKET_ID, 'unique()', file, [
         Appwrite.Permission.read(Appwrite.Role.user(currentUser.$id)),
+        Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),
         Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id)),
       ]);
-      status.textContent = "Upload successful!";
-      loadImages();
+      uploadStatus.textContent = "Upload successful!";
+      loadImages(); // Refresh the gallery
     } catch (err) {
-      status.textContent = "Upload failed: " + err.message;
+      uploadStatus.textContent = "Upload failed: " + err.message;
     } finally {
-      setTimeout(() => (status.textContent = ""), 4000);
+      setTimeout(() => (uploadStatus.textContent = ""), 4000);
       document.getElementById("fileInput").value = "";
     }
   }
 
   async function loadImages() {
-    const gallery = document.getElementById("gallery");
     gallery.innerHTML = "";
-
     try {
+      // Appwrite will only return files the current user has read access to.
       const result = await storage.listFiles(BUCKET_ID);
-      const userFiles = result.files.filter(f => f.name.startsWith(`${currentUser.$id}_`));
 
-      if (userFiles.length === 0) {
-        gallery.innerHTML = "<p style='color:#ccc;'>No images to show.</p>";
+      if (result.files.length === 0) {
+        gallery.innerHTML = "<p style='color:#ccc; width: 100%; text-align: center;'>Your vault is empty. Upload an image to get started!</p>";
         return;
       }
 
-      userFiles.forEach(file => {
+      result.files.forEach(file => {
         const imgURL = storage.getFileView(BUCKET_ID, file.$id).href;
-        const displayName = file.name.replace(`${currentUser.$id}_`, "");
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <img src="${imgURL}" />
+          <img src="${imgURL}" alt="${file.name}" />
           <div class="info">
-            <p title="${displayName}">${displayName}</p>
-            <button onclick="deleteFile('${file.$id}')">Delete</button>
+            <p title="${file.name}">${file.name}</p>
+            <button onclick="promptDelete('${file.$id}')">Delete</button>
           </div>
         `;
         gallery.appendChild(card);
       });
     } catch (err) {
-      gallery.innerHTML = `<p style='color:red;'>Error: ${err.message}</p>`;
+      gallery.innerHTML = `<p style='color:red;'>Error loading images: ${err.message}</p>`;
     }
   }
-
-  function deleteFile(id) {
+  
+  function promptDelete(id) {
     fileToDelete = id;
     document.getElementById("deleteModal").style.display = "flex";
   }
@@ -723,49 +767,50 @@ footer {
   }
 
   async function confirmDelete() {
+    if (!fileToDelete) return;
     try {
       await storage.deleteFile(BUCKET_ID, fileToDelete);
-      loadImages();
+      loadImages(); // Refresh gallery
     } catch (err) {
       alert("Delete failed: " + err.message);
     } finally {
-      document.getElementById("deleteModal").style.display = "none";
+      cancelDelete();
     }
   }
 
-  async function logout() {
-    await account.deleteSession("current");
-    location.reload();
-  }
+  // --- Event Listeners ---
 
-  // Auto-login if session exists
-  loadApp();
-
-  document.getElementById("searchInput").addEventListener("input", function () {
+  document.getElementById("searchInput").addEventListener("input", function() {
     const keyword = this.value.toLowerCase();
-    const cards = document.querySelectorAll(".card");
-
-    let count = 0;
+    const cards = document.querySelectorAll(".gallery .card");
+    let visibleCount = 0;
+    
     cards.forEach(card => {
       const name = card.querySelector("p").textContent.toLowerCase();
-      const visible = name.includes(keyword);
-      card.style.display = visible ? "flex" : "none";
-      if (visible) count++;
+      const isVisible = name.includes(keyword);
+      card.style.display = isVisible ? "flex" : "none";
+      if (isVisible) visibleCount++;
     });
 
-    if (count === 0) {
-      document.getElementById("gallery").innerHTML = "<p style='text-align:center; color:#aaa;'>No matching images.</p>";
+    // Handle no results message if needed
+    let noResultsMsg = gallery.querySelector('.no-results');
+    if (visibleCount === 0 && cards.length > 0) {
+        if (!noResultsMsg) {
+            noResultsMsg = document.createElement('p');
+            noResultsMsg.className = 'no-results';
+            noResultsMsg.style.cssText = 'text-align:center; color:#aaa; width: 100%;';
+            noResultsMsg.textContent = 'No matching images found.';
+            gallery.appendChild(noResultsMsg);
+        }
+    } else if (noResultsMsg) {
+        noResultsMsg.remove();
     }
   });
-
-  // ⏳ Splash screen logic
-window.addEventListener("load", function () {
-  setTimeout(() => {
-    document.getElementById("splashScreen").style.display = "none";
-    document.getElementById("landing").style.display = "flex";
-  }, 10000); // 10 seconds
-});
-
+  
+  // --- Start the application ---
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+  });
 </script>
 
 </body>
